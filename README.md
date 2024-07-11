@@ -1,5 +1,5 @@
 
-# Anjuna GCP CLI Docker Image for CI/CD
+# Anjuna Seaglass GCP CI/CD Howto:
 
 This repository contains a Docker image with Anjuna GCP CLI pre-installed, designed for use in CI/CD pipelines on Google Cloud Platform. The image facilitates the creation and management of Anjuna environments on Google Cloud.
 
