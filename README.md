@@ -50,6 +50,43 @@ RUN echo 'source /opt/anjuna/gcp/env.sh' >> ~/.bashrc
 ENTRYPOINT ["/bin/bash"]
 ```
 
+## Security Recommendations
+
+To protect the Anjuna authentication token, you should avoid hardcoding it in your Dockerfile or any configuration files that may be exposed. Instead, use environment variables and secret management tools. Here are some recommended practices:
+
+- Use Environment Variables:
+- Pass the token as an environment variable when building or running the Docker container.
+- Google Secret Manager:
+- Store the token in Google Secret Manager and retrieve it securely during the build process.
+
+### Using Google Cloud Secret Manager
+
+To protect the Anjuna authentication token, you can use Google Cloud Secret Manager. This allows you to securely store and access your secrets without hardcoding them in your Dockerfile or configuration files.
+
+#### Storing the Secret
+
+1. **Store the Anjuna Auth Token in Secret Manager**:
+   ```bash
+   echo -n "your-anjuna-auth-token" | gcloud secrets create anjuna-auth-token --data-file=-
+
+1. **Use Anjuna Auth Token in Secret Manager (`cloudbuild.yaml`)**:
+
+```yaml
+# Define secret environment variables
+
+secretEnv:
+- ANJUNA_AUTH_TOKEN
+
+secrets:
+- kmsKeyName: projects/YOUR_PROJECT_ID/locations/global/keyRings/YOUR_KEYRING/cryptoKeys/YOUR_KEY
+  secretEnv:
+    ANJUNA_AUTH_TOKEN: projects/YOUR_PROJECT_ID/secrets/anjuna-auth-token/versions/latest
+```
+
+Replace placeholders such as YOUR_PROJECT_ID, YOUR_KEYRING, YOUR_KEY, and /path/to/your/service-account-key.json with actual values specific to your environment.
+
+This setup ensures that the Anjuna authentication token is securely stored and accessed during the build process, protecting it from exposure.
+
 ## Building and Pushing the Docker Image
 
 Replace `YOUR_ANJUNA_AUTH_TOKEN` with your actual Anjuna authentication token before proceeding.
