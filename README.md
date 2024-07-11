@@ -6,7 +6,7 @@ This repository contains a Docker image with Anjuna GCP CLI pre-installed, desig
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-- [Dockerfile & Google Secret Setup](#dockerfile)
+- [Dockerfile & Google Secret Setup](#dockerfile-&-google-secrets-setup)
 - [Building and Pushing the Docker Image](#building-and-pushing-the-docker-image)
 - [Setting Up Google Cloud Build](#setting-up-google-cloud-build)
 - [Cloud Build Configuration](#cloud-build-configuration)
