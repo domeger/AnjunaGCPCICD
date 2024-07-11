@@ -6,7 +6,7 @@ This repository contains a Docker image with Anjuna GCP CLI pre-installed, desig
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
-- [Dockerfile](#dockerfile)
+- [Dockerfile & Google Secret Setup](#dockerfile)
 - [Building and Pushing the Docker Image](#building-and-pushing-the-docker-image)
 - [Setting Up Google Cloud Build](#setting-up-google-cloud-build)
 - [Cloud Build Configuration](#cloud-build-configuration)
@@ -20,7 +20,15 @@ This repository contains a Docker image with Anjuna GCP CLI pre-installed, desig
 - Service account with necessary permissions and a key file.
 - Anjuna API Token.
 
-## Dockerfile
+## Dockerfile & Google Secrets Setup
+
+```bash
+Setting up your Google Secrets for Anjuna Token:
+read -sp "Enter your Anjuna Auth Token: " ANJUNA_AUTH_TOKEN
+echo
+echo -n "$ANJUNA_AUTH_TOKEN" | gcloud secrets create anjuna-auth-token --data-file=- --replication-policy="automatic"
+unset ANJUNA_AUTH_TOKEN
+```
 
 The Dockerfile installs Docker and Anjuna CLI, ensuring the build node has the necessary tools.
 
@@ -55,27 +63,29 @@ ENTRYPOINT ["/bin/bash"]
 
 ## Building and Pushing the Docker Image
 
-Replace `YOUR_ANJUNA_AUTH_TOKEN` with your actual Anjuna authentication token before proceeding.
-
 ```bash
-# Retrieve the Anjuna Auth Token from Secret Manager
-ANJUNA_AUTH_TOKEN=$(gcloud secrets versions access latest --secret="anjuna-auth-token")
+# Set your Google Cloud project ID
+export PROJECT_ID="YOUR_PROJECT_ID"
 
-# Build Docker image with the build argument
-docker build --build-arg ANJUNA_AUTH_TOKEN=$ANJUNA_AUTH_TOKEN -t anjuna-gcp-cli:latest .
+# Build Docker image
+docker build -t anjuna-gcp-cli:latest .
 
 # Authenticate with Google Cloud
 gcloud auth login
-gcloud auth configure-docker
+gcloud auth configure-docker us-central1-docker.pkg.dev
 
 # Create Artifact Registry repository
-gcloud artifacts repositories create my-repo --repository-format=docker --location=us-central1
+gcloud artifacts repositories create my-repo --repository-format=docker --location=us-central1 --project=$PROJECT_ID
 
 # Tag Docker image
-docker tag anjuna-gcp-cli:latest us-central1-docker.pkg.dev/YOUR_PROJECT_ID/my-repo/anjuna-gcp-cli:latest
+docker tag anjuna-gcp-cli:latest us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/anjuna-gcp-cli:latest
 
 # Push Docker image to Artifact Registry
-docker push us-central1-docker.pkg.dev/YOUR_PROJECT_ID/my-repo/anjuna-gcp-cli:latest
+docker push us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/anjuna-gcp-cli:latest
+
+# Example command to run the container
+echo "To run the container, use the following command:"
+echo "docker run -it --rm -v $HOME/.config/gcloud:/root/.config/gcloud us-central1-docker.pkg.dev/$PROJECT_ID/my-repo/anjuna-gcp-cli:latest"
 ```
 
 ## Setting Up Google Cloud Build
