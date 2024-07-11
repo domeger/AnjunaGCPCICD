@@ -28,6 +28,9 @@ The Dockerfile installs Docker and Anjuna CLI, ensuring the build node has the n
 # Use a base image with necessary tools
 FROM ubuntu:20.04
 
+# Define build argument for Anjuna Auth Token
+ARG ANJUNA_AUTH_TOKEN
+
 # Install necessary dependencies
 RUN apt-get update && \
     apt-get install -y wget curl sudo gnupg lsb-release software-properties-common && \
@@ -38,7 +41,7 @@ RUN groupadd docker && \
     usermod -aG docker $USER
 
 # Download and install Anjuna CLI
-RUN wget https://api.downloads.anjuna.io/v1/releases/anjuna-gcp-installer.release-1.11.0004.bin --header="X-Anjuna-Auth-Token:YOUR_ANJUNA_AUTH_TOKEN" && \
+RUN wget https://api.downloads.anjuna.io/v1/releases/anjuna-gcp-installer.release-1.11.0004.bin --header="X-Anjuna-Auth-Token:${ANJUNA_AUTH_TOKEN}" && \
     chmod +x anjuna-gcp-installer.release-1.11.0004.bin && \
     ./anjuna-gcp-installer.release-1.11.0004.bin && \
     rm anjuna-gcp-installer.release-1.11.0004.bin
@@ -50,50 +53,16 @@ RUN echo 'source /opt/anjuna/gcp/env.sh' >> ~/.bashrc
 ENTRYPOINT ["/bin/bash"]
 ```
 
-## Security Recommendations
-
-To protect the Anjuna authentication token, you should avoid hardcoding it in your Dockerfile or any configuration files that may be exposed. Instead, use environment variables and secret management tools. Here are some recommended practices:
-
-- Use Environment Variables:
-- Pass the token as an environment variable when building or running the Docker container.
-- Google Secret Manager:
-- Store the token in Google Secret Manager and retrieve it securely during the build process.
-
-### Using Google Cloud Secret Manager
-
-To protect the Anjuna authentication token, you can use Google Cloud Secret Manager. This allows you to securely store and access your secrets without hardcoding them in your Dockerfile or configuration files.
-
-#### Storing the Secret
-
-1. **Store the Anjuna Auth Token in Secret Manager**:
-   ```bash
-   echo -n "your-anjuna-auth-token" | gcloud secrets create anjuna-auth-token --data-file=-
-
-1. **Use Anjuna Auth Token in Secret Manager (`cloudbuild.yaml`)**:
-
-```yaml
-# Define secret environment variables
-
-secretEnv:
-- ANJUNA_AUTH_TOKEN
-
-secrets:
-- kmsKeyName: projects/YOUR_PROJECT_ID/locations/global/keyRings/YOUR_KEYRING/cryptoKeys/YOUR_KEY
-  secretEnv:
-    ANJUNA_AUTH_TOKEN: projects/YOUR_PROJECT_ID/secrets/anjuna-auth-token/versions/latest
-```
-
-Replace placeholders such as YOUR_PROJECT_ID, YOUR_KEYRING, YOUR_KEY, and /path/to/your/service-account-key.json with actual values specific to your environment.
-
-This setup ensures that the Anjuna authentication token is securely stored and accessed during the build process, protecting it from exposure.
-
 ## Building and Pushing the Docker Image
 
 Replace `YOUR_ANJUNA_AUTH_TOKEN` with your actual Anjuna authentication token before proceeding.
 
 ```bash
-# Build Docker image
-docker build -t anjuna-gcp-cli:latest .
+# Retrieve the Anjuna Auth Token from Secret Manager
+ANJUNA_AUTH_TOKEN=$(gcloud secrets versions access latest --secret="anjuna-auth-token")
+
+# Build Docker image with the build argument
+docker build --build-arg ANJUNA_AUTH_TOKEN=$ANJUNA_AUTH_TOKEN -t anjuna-gcp-cli:latest .
 
 # Authenticate with Google Cloud
 gcloud auth login
@@ -142,7 +111,15 @@ steps:
     gcloud auth activate-service-account --key-file=${GOOGLE_APPLICATION_CREDENTIALS}
     gcloud config set project $PROJECT_ID
 
-# Step 2: Use the Docker image to run commands
+# Step 2: Retrieve the Anjuna Auth Token from Secret Manager
+- name: 'gcr.io/cloud-builders/gcloud'
+  entrypoint: 'bash'
+  args:
+  - '-c'
+  - |
+    export ANJUNA_AUTH_TOKEN=$(gcloud secrets versions access latest --secret="anjuna-auth-token")
+
+# Step 3: Use the Docker image to run commands with the token
 - name: 'us-central1-docker.pkg.dev/YOUR_PROJECT_ID/my-repo/anjuna-gcp-cli:latest'
   entrypoint: 'bash'
   args:
@@ -181,7 +158,7 @@ steps:
     anjuna-gcp-cli instance describe --instance=${INSTANCE_NAME} --attestation-report
 
     echo "Step 8: Get the external IP address and make a curl request"
-    export IP_ADDRESS=$(anjuna-gcp-cli instance describe --instance=${INSTANCE_NAME} --show-ip | egrep -m 1 -i "AccessConfig: External NAT IpAddr:\s*[0-9]+" | sed -E 's/.*IpAddr\:\s*([0-9.]+).*/\1/')
+    export IP_ADDRESS=$(anjuna-gcp-cli instance describe --instance=${INSTANCE_NAME} --show-ip | egrep -m 1 -i "AccessConfig: External NAT IpAddr:\\s*[0-9]+" | sed -E 's/.*IpAddr\\:\\s*([0-9.]+).*/\\1/')
     curl ${IP_ADDRESS}:80
 
     echo "Step 9: Retrieve instance logs"
@@ -198,6 +175,15 @@ images:
 env:
 - PROJECT_ID=your-google-cloud-project-id
 - GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/service-account-key.json
+
+# Define secret environment variables
+secretEnv:
+- ANJUNA_AUTH_TOKEN
+
+secrets:
+- kmsKeyName: projects/YOUR_PROJECT_ID/locations/global/keyRings/YOUR_KEYRING/cryptoKeys/YOUR_KEY
+  secretEnv:
+    ANJUNA_AUTH_TOKEN: projects/YOUR_PROJECT_ID/secrets/anjuna-auth-token/versions/latest
 ```
 
 ## Environment Variables
