@@ -3,6 +3,8 @@
 
 This repository contains a Docker image with Anjuna GCP CLI pre-installed, designed for use in CI/CD pipelines on Google Cloud Platform. The image facilitates the creation and management of Anjuna environments on Google Cloud.
 
+![Diagram][24c8f3c9-c30c-4440-862e-29b4ef7c7e7f.svg]
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)
